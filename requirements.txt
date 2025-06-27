@@ -1,0 +1,5 @@
+simpy
+duckdb
+pandas
+numpy
+streamlit
