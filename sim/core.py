@@ -4,9 +4,7 @@ from sim import config
 from sim.logging import SimulationLogger
 
 def run_simulation(num_pickers, seed=None):
-    """
-    Initialize environment, order queue, and start processes.
-    """
+    """ Initialize environment, order queue, and start processes. """
     if seed is not None:
         random.seed(seed)
     env = simpy.Environment()

@@ -1,7 +1,6 @@
 import os
 import duckdb
 import pandas as pd
-from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "simulation.db")
 
@@ -11,7 +10,7 @@ class SimulationLogger:
         self.order_events = {}
 
     def log_order_arrival(self, order_id, timestamp):
-        """ Record orders data"""
+        """ Initialize order record upon arrival in the system"""
         self.order_events[order_id] = {
             "order_id": order_id,
             "arrival_time": timestamp,
@@ -35,11 +34,10 @@ class SimulationLogger:
         """ Write all in-memory order event data to DuckDB.
         Clears the target table before inserting."""
         con = duckdb.connect(DB_PATH)
-        con.execute("DELETE FROM order_events")
 
         # Ensure table exists
         con.execute("""
-            CREATE TABLE IF NOT EXISTS order_events (
+            CREATE OR REPLACE TABLE order_events (
                 order_id TEXT,
                 arrival_time FLOAT,
                 start_pick_time FLOAT,
@@ -48,17 +46,7 @@ class SimulationLogger:
             )
         """)
 
-        # Clear existing rows for clean testing/development
-
-
         # Write all events to the table
-        self.order_events.reset_index(drop=True).to_sql(
-        "order_events",
-        self.con,
-        if_exists="append",
-        index=False
-)
-
         df = pd.DataFrame(self.order_events.values())
         con.execute("INSERT INTO order_events SELECT * FROM df")
 
