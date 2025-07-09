@@ -8,12 +8,26 @@ class SimulationLogger:
     def __init__(self):
         # In-memory event store: key = order_id, value = dict with event data
         self.order_events = {}
+    
+    def log_pickers(self, pickers):
+        """Store picker configuration for the current simulation."""
+        df = pd.DataFrame(pickers)
+        con = duckdb.connect(DB_PATH)
+        con.execute("""
+            CREATE OR REPLACE TABLE pickers (
+                picker_id TEXT,
+                shift_id INTEGER
+            )
+        """)
+        con.execute("INSERT INTO pickers SELECT * FROM df")
+        con.close()
 
-    def log_order_arrival(self, order_id, timestamp):
+    def log_order_arrival(self, order_id, arrival_time, due_date):
         """ Initialize order record upon arrival in the system"""
         self.order_events[order_id] = {
             "order_id": order_id,
-            "arrival_time": timestamp,
+            "arrival_time": arrival_time,
+            "due_date": due_date,
             "start_pick_time": None,
             "end_pick_time": None,
             "picker_id": None,
@@ -40,6 +54,7 @@ class SimulationLogger:
             CREATE OR REPLACE TABLE order_events (
                 order_id TEXT,
                 arrival_time FLOAT,
+                due_date FLOAT,
                 start_pick_time FLOAT,
                 end_pick_time FLOAT,
                 picker_id TEXT
