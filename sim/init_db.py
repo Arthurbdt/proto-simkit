@@ -10,7 +10,7 @@ def initialize_database():
     
     # Create shifts table (if not exists)
     con.execute("""
-        CREATE TABLE IF NOT EXISTS shifts (
+        CREATE OR REPLACE TABLE shifts (
             shift_id INTEGER PRIMARY KEY,
             shift_name TEXT,
             start_time FLOAT,
@@ -21,6 +21,7 @@ def initialize_database():
     df = pd.DataFrame(cfg.SHIFTS_DEFINITION)
     con.execute("INSERT INTO shifts SELECT * FROM df")
     con.close()
+    print('Database initialized')
 
 if __name__ == "__main__":
     initialize_database()

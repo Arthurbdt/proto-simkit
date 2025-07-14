@@ -1,5 +1,6 @@
 
 SIM_DURATION = 60 * 8           # minutes * hours
+DAY_DURATION = 60 * 24           # minutes * hours
 ORDER_INTERARRIVAL_TIME = 2     # mean time between order (minutes)
 NUM_PICKERS = 2                 # number of pickers in the warehouse
 PICK_TIME_MEAN = 5              # mean time to pick an order (minutes)
