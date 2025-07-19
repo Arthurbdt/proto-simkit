@@ -1,7 +1,6 @@
 import simpy
 import random
 
-import simpy.exceptions
 from sim import config
 from sim import init_db
 from sim.logging import SimulationLogger
@@ -55,58 +54,62 @@ def order_arrival(env, order_queue, logger):
         yield order_queue.put({"order_id": order_id})
         order_id += 1
 
+
 def picker_process(env, name, order_queue, logger, shift):
     """ Each picker continuously takes the next available order and processes it """
     
     active_shift = SHIFT_LOOKUP[shift]
     shift_start = active_shift["start_time"]
     shift_end = active_shift["end_time"]
-    print(f"Picker {name} is on shift each day between {shift_start} and {shift_end}")
-    yield env.timeout(30)
 
     while True:
-        minutes_in_day = env.now % config.DAY_DURATION
+        time_of_day = env.now % config.DAY_DURATION 
+        
+        # Debug print
+        print(f"[DEBUG] {name} at time {env.now} (day minute {time_of_day}), shift: {shift_start}-{shift_end}")
 
-        # check if resource is on duty
-        if shift_start <= minutes_in_day <= shift_end:
-            print(f"{env.now}: Picker {name} is on shift")
+        # check if resource is on shift
+        if shift_start <= time_of_day < shift_end:
             # Calculate remaining time in shift
-            time_left_in_shift = shift_end - minutes_in_day
+            time_left_in_shift = shift_end - time_of_day
             
-            try:
-                # Try to get an order, but timeout if we're approaching shift end
-                get_event = order_queue.get()
-                timeout_event = env.timeout(time_left_in_shift)
-                
-                result = yield get_event | timeout_event
-                
-                # Check which event triggered
-                if get_event.processed:  # We got an order
-                    order = get_event.value
-                    print(f"{env.now}: Picker {name} has picked {order}")
-
-                    # Double-check we still have time to process it
-                    minutes_in_day = env.now % config.DAY_DURATION
-                    if minutes_in_day + config.PICK_TIME_MEAN <= shift_end:
+            print(f"[DEBUG] {name} on duty, time left: {time_left_in_shift}")
+            
+            # Check if there is enough time to complete an order
+            if time_left_in_shift >= config.PICK_TIME_MEAN:
+                try:
+                    # Try to get an order, but timeout if we're approaching shift end
+                    pick_part = order_queue.get()
+                    end_of_shift = env.timeout(time_left_in_shift - config.PICK_TIME_MEAN)
+                    
+                    print(f"[DEBUG] {name} waiting for order or timeout ({time_left_in_shift - config.PICK_TIME_MEAN})")
+                    result = yield pick_part | end_of_shift
+                    
+                    # Check which event triggered
+                    if pick_part:
+                        order = pick_part.value
+                        print(f"[DEBUG]{env.now}: {name} got order {order['order_id']}")
                         logger.log_pick_start(order["order_id"], name, env.now)
                         yield env.timeout(config.PICK_TIME_MEAN)
                         logger.log_pick_end(order["order_id"], env.now)
+                        print(f"[DEBUG]{env.now}: {name} finished order {order['order_id']}")
                     else:
-                        # Not enough time left, put order back
-                        order_queue.put(order)
-                        break  # End shift
-                else:
-                    # Timeout event triggered - shift is ending
+                        # Picker waited until the end of the shift
+                        print(f"[DEBUG] {name} timed out waiting for order")
+                        pass
+                        
+                except simpy.Interrupt:
+                    print(f"[DEBUG] {name} interrupted")
                     break
-                    
-            except simpy.Interrupt:
-                # Handle any interrupts if needed
-                break
+            else:
+                # Not enough time left for another pick, wait until shift ends
+                print(f"[DEBUG] {name} not enough time left ({time_left_in_shift} < {config.PICK_TIME_MEAN}), waiting {time_left_in_shift}")
+                yield env.timeout(time_left_in_shift)
         else:
             # Wait until the next time we are in shift
-            time_until_shift = (shift_start - minutes_in_day) % config.DAY_DURATION
-            print(f"{env.now}: Picker {name} is not on shift and will wait for {time_until_shift} minutes")
-            yield env.timeout(time_until_shift)
+            time_until_next_shift = (shift_start - time_of_day) % config.DAY_DURATION
+            print(f"[DEBUG] {name} off duty, waiting {time_until_next_shift} minutes")
+            yield env.timeout(time_until_next_shift)
 
 if __name__ == "__main__":
     run_simulation(config.PICKERS_DEFAULT, seed=42)
