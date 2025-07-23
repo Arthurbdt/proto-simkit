@@ -9,22 +9,38 @@ import os
 # Import simulation run function
 from sim.core import run_simulation
 from sim.logging import DB_PATH
+from sim.config import SHIFTS_DEFINITION
 
 
-st.title("Simulation App")
-st.sidebar.header("Simulation Parameters")
-num_pickers = st.sidebar.slider("Number of Pickers", min_value=1, max_value=10, value=3)
+st.title("Simulation App") # app title
 run_button = st.sidebar.button("Run Simulation")
 
 # Sidebar navigation
 page = st.sidebar.radio("Navigation", ["Simulation", "How To"])
+
+
+st.header("Assign Pickers to Shifts")
+
+pickers = []
+for shift in SHIFTS_DEFINITION:
+    count = st.number_input(
+        f"Number of pickers for {shift['shift_name']} ({shift['start_time']}–{shift['end_time']})",
+        min_value=0,
+        value=2,
+        key=f"shift_{shift['shift_id']}"
+    )
+    for i in range(count):
+        pickers.append({
+            "picker_id": f"Picker-{shift['shift_id']}-{i+1}",
+            "shift_id": shift["shift_id"]
+        })
 
 # --- User Input ---
 if page == "Simulation":
 # --- Run simulation ---
     if run_button:
         st.write("Running simulation...")
-        run_simulation(num_pickers=num_pickers)
+        run_simulation(pickers)
         st.success("Simulation complete!")
 
         # --- Query results ---
