@@ -14,14 +14,15 @@ SHIFTS_DEFINITION = [
     {"shift_id": 2, "shift_name": "Night Shift", "start_time": 480.0, "end_time": 960.0},
 ]
 
-PICKERS_DEFAULT = [
-    {"picker_id": "Picker 1", "shift_id": 1}
+SKILLS_DEFINITION = [
+    {"skill_id": 1, "skill_name": "Junior", "speed_factor": 1.2},
+    {"skill_id": 2, "skill_name": "Standard", "speed_factor": 1.0},
+    {"skill_id": 3, "skill_name": "Expert", "speed_factor": 0.8}
 ]
 
-'''
+# default pickers configuration for testing and quick simulation run
 PICKERS_DEFAULT = [
-    {"picker_id": "Picker 1", "shift_id": 1},
-    {"picker_id": "Picker 2", "shift_id": 1},
-    {"picker_id": "Picker 3", "shift_id": 2},
+    {"picker_id": "Picker 1", "shift_id": 1, "skill_id": 1},
+    {"picker_id": "Picker 2", "shift_id": 1, "skill_id": 2},
+    {"picker_id": "Picker 3", "shift_id": 2, "skill_id": 3}
 ]
-'''

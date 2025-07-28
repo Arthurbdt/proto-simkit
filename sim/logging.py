@@ -16,7 +16,8 @@ class SimulationLogger:
         con.execute("""
             CREATE OR REPLACE TABLE pickers (
                 picker_id TEXT,
-                shift_id INTEGER
+                shift_id INTEGER,
+                skill_id INTEGER
             )
         """)
         con.execute("INSERT INTO pickers SELECT * FROM df")

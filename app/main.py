@@ -2,13 +2,33 @@ import sys
 import os
 import streamlit as st
 import duckdb
+import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# Import simulation run function
+# import simulation run function
 from sim.core import run_simulation
 from sim.logging import DB_PATH
-from sim.config import SHIFTS_DEFINITION
+from sim.config import SHIFTS_DEFINITION, SKILLS_DEFINITION, PICKERS_DEFAULT
 
+# Create lookup dictionaries
+SHIFT_ID_TO_NAME = {s["shift_id"]: s["shift_name"] for s in SHIFTS_DEFINITION}
+SHIFT_NAME_TO_ID = {v: k for k, v in SHIFT_ID_TO_NAME.items()}
+
+SKILL_ID_TO_NAME = {s["skill_id"]: s["skill_name"] for s in SKILLS_DEFINITION}
+SKILL_NAME_TO_ID = {v: k for k, v in SKILL_ID_TO_NAME.items()}
+
+# display initial picker
+display_picker_df = pd.DataFrame([
+    {
+        "picker_id": p["picker_id"],
+        "shift_name": SHIFT_ID_TO_NAME.get(p["shift_id"], ""),
+        "skill_name": SKILL_ID_TO_NAME.get(p["skill_id"], "")
+    }
+    for p in PICKERS_DEFAULT
+])
+
+
+######### PAGE LAYOUT ######
 
 st.title("Simulation App") # app title
 run_button = st.sidebar.button("Run Simulation")
@@ -16,29 +36,38 @@ run_button = st.sidebar.button("Run Simulation")
 # Sidebar navigation
 page = st.sidebar.radio("Navigation", ["Simulation", "How To"])
 
+edited_df = st.data_editor(
+    display_picker_df,
+    num_rows="dynamic",
+    use_container_width=True,
+    key="picker_table",
+    column_config={
+        "shift_name": st.column_config.SelectboxColumn(
+            label="Shift",
+            options=list(SHIFT_NAME_TO_ID.keys())
+        ),
+        "skill_name": st.column_config.SelectboxColumn(
+            label="Skill",
+            options=list(SKILL_NAME_TO_ID.keys())
+        )
+    }
+)
 
-st.header("Assign Pickers to Shifts")
+picker_input = []
+for _, row in edited_df.iterrows():
+    picker_input.append({
+        "picker_id": row["picker_id"],
+        "shift_id": SHIFT_NAME_TO_ID.get(row["shift_name"]),
+        "skill_id": SKILL_NAME_TO_ID.get(row["skill_name"])
+    })
 
-pickers = []
-for shift in SHIFTS_DEFINITION:
-    count = st.number_input(
-        f"Number of pickers for {shift['shift_name']} ({shift['start_time']}–{shift['end_time']})",
-        min_value=0,
-        value=2,
-        key=f"shift_{shift['shift_id']}"
-    )
-    for i in range(count):
-        pickers.append({
-            "picker_id": f"Picker-{shift['shift_id']}-{i+1}",
-            "shift_id": shift["shift_id"]
-        })
 
 # --- User Input ---
 if page == "Simulation":
 # --- Run simulation ---
     if run_button:
         st.write("Running simulation...")
-        run_simulation(pickers)
+        run_simulation(picker_input)
         st.success("Simulation complete!")
 
         # --- Query results ---
