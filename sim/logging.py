@@ -8,6 +8,7 @@ class SimulationLogger:
     def __init__(self):
         # In-memory event store: key = order_id, value = dict with event data
         self.order_events = {}
+        self.picker_states = []
     
     def log_pickers(self, pickers):
         """Store picker configuration for the current simulation."""
@@ -45,12 +46,20 @@ class SimulationLogger:
         if order_id in self.order_events:
             self.order_events[order_id]["end_pick_time"] = timestamp
 
+    def log_picker_state(self, picker_id, state, timestamp):
+        """ Record a change of state for a picker"""
+        self.picker_states.append({
+            "picker_id": picker_id,
+            "state": state, 
+            "timestamp": timestamp
+            })
+
     def flush(self):
-        """ Write all in-memory order event data to DuckDB.
+        """ Write all in-memory order events and picker states data to DuckDB.
         Clears the target table before inserting."""
         con = duckdb.connect(DB_PATH)
 
-        # Ensure table exists
+        # Ensure order events table exists
         con.execute("""
             CREATE OR REPLACE TABLE order_events (
                 order_id TEXT,
@@ -62,8 +71,21 @@ class SimulationLogger:
             )
         """)
 
+        # Ensure picker states table exists
+        con.execute("""
+            CREATE OR REPLACE TABLE picker_states (
+                picker_id TEXT,
+                state TEXT,
+                timestamp FLOAT
+            )
+        """)
+
         # Write all events to the table
-        df = pd.DataFrame(self.order_events.values())
-        con.execute("INSERT INTO order_events SELECT * FROM df")
+        df_order_events = pd.DataFrame(self.order_events.values())
+        con.execute("INSERT INTO order_events SELECT * FROM df_order_events")
+
+        # Write all picker states to the table
+        df_picker_states = pd.DataFrame(self.picker_states)
+        con.execute("INSERT INTO picker_states SELECT * FROM df_picker_states")
 
         con.close()

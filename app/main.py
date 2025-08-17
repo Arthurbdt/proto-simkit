@@ -3,6 +3,7 @@ import os
 import streamlit as st
 import duckdb
 import pandas as pd
+import altair as alt
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # import simulation run function
@@ -89,6 +90,33 @@ if page == "Simulation":
                 ORDER BY picker_id
             """).fetchdf()
 
+            # Picker states
+            picker_states = con.execute("""
+    WITH states AS (
+        SELECT
+            picker_id,
+            state,
+            timestamp AS start_time,
+            LEAD(timestamp) OVER (PARTITION BY picker_id ORDER BY timestamp) AS end_time,
+            LEAD(timestamp) OVER (PARTITION BY picker_id ORDER BY timestamp) - timestamp AS duration
+        FROM picker_states
+        ),
+        state_duration AS (
+        SELECT
+            picker_id,
+            state,
+            SUM(duration) as duration
+        FROM states
+        GROUP BY picker_id, state
+        )
+        SELECT
+            picker_id,
+            state, 
+            duration, 
+            duration / SUM(duration) OVER (PARTITION BY picker_id) AS proportion
+        FROM state_duration
+""").fetch_df()
+        
             # --- Display results ---
             st.subheader("Results")
             st.metric("Average Order Cycle Time", f"{avg_cycle_time:.2f} time units")
@@ -98,6 +126,16 @@ if page == "Simulation":
 
             st.bar_chart(picker_workload.set_index("picker_id"))
 
+            chart = alt.Chart(picker_states).mark_bar().encode(
+    x=alt.X("picker_id:N", title="Picker"),
+    y=alt.Y("proportion:Q", stack="normalize", axis=alt.Axis(format='%')),
+    color=alt.Color("state:N", title="State"),
+    tooltip=["picker_id", "state", "duration", alt.Tooltip("proportion:Q", format=".0%")]
+).properties(
+    width=600,
+    height=400
+)
+            st.altair_chart(chart, use_container_width=True)
         except Exception as e:
             st.error(f"Failed to load results: {e}")
 

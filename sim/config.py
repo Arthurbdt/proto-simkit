@@ -1,7 +1,7 @@
 
 SHIFT_DURATION = 480                # minutes per shift
 DAY_DURATION = 2 * SHIFT_DURATION   # number of shifts in a day
-SIM_DURATION = 2 * SHIFT_DURATION   # number of shifts simulated
+SIM_DURATION = 7 * DAY_DURATION   # number of shifts simulated
 ORDER_INTERARRIVAL_TIME = 2         # mean time between order (minutes)
 PICK_TIME_MEAN = 5                  # mean time to pick an order (minutes)
 ORDER_LEAD_TIME_MIN = 60            # mimimum lead time to complete an order

@@ -68,31 +68,38 @@ def picker_process(env, name, order_queue, logger, shift, skill):
         # check if resource is on shift
         if shift_start <= time_of_day < shift_end:
             time_left_in_shift = shift_end - time_of_day
+            # check that there is enough time to complete the next order
             if time_left_in_shift >= (config.PICK_TIME_MEAN * speed_factor):
                 try:
                     # Check if the queue has parts before attempting to get
                     if len(order_queue.items) > 0:
+                        logger.log_picker_state(name, "getting_order", env.now)
                         pick_part = order_queue.get()
                         end_of_shift = env.timeout(time_left_in_shift - (config.PICK_TIME_MEAN * speed_factor))
                         result = yield pick_part | end_of_shift
                         if pick_part in result:
                             order = result[pick_part]
+                            logger.log_picker_state(name, "picking", env.now)
                             logger.log_pick_start(order["order_id"], name, env.now)
                             yield env.timeout(config.PICK_TIME_MEAN * speed_factor)
                             logger.log_pick_end(order["order_id"], env.now)
                         else:
-                            # Timed out before getting the part
+                            # End of shift before getting a part
+                            logger.log_picker_state(name, "off_shift", env.now)
                             pass
                     else:
-                        # Wait a little before checking again — assumes exponential arrivals
+                        # Wait a little before checking again
+                        logger.log_picker_state(name, "waiting", env.now)
                         yield env.timeout(config.ORDER_INTERARRIVAL_TIME)
                 except simpy.Interrupt:
                     break
             else:
-                # Not enough time left in shift
+                # Not enough time to process an order, wait until the end of shift
+                logger.log_picker_state(name, "waiting", env.now)
                 yield env.timeout(time_left_in_shift)
         else:
             # Wait until next shift
+            logger.log_picker_state(name, "off_shift", env.now)
             time_until_next_shift = (shift_start - time_of_day) % config.DAY_DURATION
             yield env.timeout(time_until_next_shift)
 
