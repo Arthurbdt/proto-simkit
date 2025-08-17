@@ -116,6 +116,21 @@ if page == "Simulation":
             duration / SUM(duration) OVER (PARTITION BY picker_id) AS proportion
         FROM state_duration
 """).fetch_df()
+            
+            # orders in system
+            orders_in_system = con.execute("""
+WITH events AS (
+    SELECT arrival_time AS t, +1 AS delta FROM order_events
+    UNION ALL
+    SELECT end_pick_time AS t, -1 AS delta FROM order_events
+)
+SELECT
+    t,
+    SUM(delta) OVER (ORDER BY t ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS orders_in_system
+FROM events
+WHERE t IS NOT NULL
+ORDER BY t
+""").df()
         
             # --- Display results ---
             st.subheader("Results")
@@ -126,7 +141,8 @@ if page == "Simulation":
 
             st.bar_chart(picker_workload.set_index("picker_id"))
 
-            chart = alt.Chart(picker_states).mark_bar().encode(
+            # stacked bar for picker states
+            chart1 = alt.Chart(picker_states).mark_bar().encode(
     x=alt.X("picker_id:N", title="Picker"),
     y=alt.Y("proportion:Q", stack="normalize", axis=alt.Axis(format='%')),
     color=alt.Color("state:N", title="State"),
@@ -135,9 +151,32 @@ if page == "Simulation":
     width=600,
     height=400
 )
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart1, use_container_width=True)
+
+            # line chart
+            line = alt.Chart(orders_in_system).mark_line(color="steelblue").encode(
+            x=alt.X("t:Q", title="Time"),
+            y=alt.Y("orders_in_system:Q", title="Orders in System")
+    )
+            shift_rects = []
+            colors = ["#f5f5f5", "#e0e0e0"]  # alternate gray shades
+            for i, shift in enumerate(SHIFTS_DEFINITION):
+                rect = alt.Chart(pd.DataFrame({
+                    "start": [shift["start_time"]],
+                    "end": [shift["end_time"]],
+                    "shift": [shift["shift_name"]]
+                })).mark_rect(opacity=0.3, color=colors[i % len(colors)]).encode(
+                    x="start:Q",
+                    x2="end:Q"
+                )
+            shift_rects.append(rect)
+
+            chart2 = alt.layer(*shift_rects, line).resolve_scale(y='shared')
+            st.altair_chart(chart2, use_container_width=True)
+
         except Exception as e:
             st.error(f"Failed to load results: {e}")
+
 
 elif page == "How To":
     st.header("How To Use This App")
