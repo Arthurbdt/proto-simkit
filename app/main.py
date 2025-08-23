@@ -4,6 +4,8 @@ import streamlit as st
 import duckdb
 import pandas as pd
 import altair as alt
+import queries
+import charts
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # import simulation run function
@@ -75,104 +77,22 @@ if page == "Simulation":
         try:
             con = duckdb.connect(DB_PATH)
 
-            # Average cycle time
-            avg_cycle_time = con.execute("""
-                SELECT AVG(end_pick_time - arrival_time) AS avg_cycle_time
-                FROM order_events
-                WHERE end_pick_time IS NOT NULL
-            """).fetchone()[0]
-
-            # Picker workload
-            picker_workload = con.execute("""
-                SELECT picker_id, COUNT(order_id) AS orders_handled
-                FROM order_events
-                GROUP BY picker_id
-                ORDER BY picker_id
-            """).fetchdf()
-
-            # Picker states
-            picker_states = con.execute("""
-    WITH states AS (
-        SELECT
-            picker_id,
-            state,
-            timestamp AS start_time,
-            LEAD(timestamp) OVER (PARTITION BY picker_id ORDER BY timestamp) AS end_time,
-            LEAD(timestamp) OVER (PARTITION BY picker_id ORDER BY timestamp) - timestamp AS duration
-        FROM picker_states
-        ),
-        state_duration AS (
-        SELECT
-            picker_id,
-            state,
-            SUM(duration) as duration
-        FROM states
-        GROUP BY picker_id, state
-        )
-        SELECT
-            picker_id,
-            state, 
-            duration, 
-            duration / SUM(duration) OVER (PARTITION BY picker_id) AS proportion
-        FROM state_duration
-""").fetch_df()
-            
-            # orders in system
-            orders_in_system = con.execute("""
-WITH events AS (
-    SELECT arrival_time AS t, +1 AS delta FROM order_events
-    UNION ALL
-    SELECT end_pick_time AS t, -1 AS delta FROM order_events
-)
-SELECT
-    t,
-    SUM(delta) OVER (ORDER BY t ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS orders_in_system
-FROM events
-WHERE t IS NOT NULL
-ORDER BY t
-""").df()
-        
-            # --- Display results ---
+            # prepare data
+            avg_cycle_time = queries.get_average_cycle_time(con)
+            picker_workload = queries.get_picker_workload(con)
+            picker_states = queries.get_picker_states(con)
+            orders_in_system = queries.get_orders_over_time(con)
+            # display results
             st.subheader("Results")
             st.metric("Average Order Cycle Time", f"{avg_cycle_time:.2f} time units")
-
             st.subheader("Picker Workload")
             st.dataframe(picker_workload)
-
+            # bar chart for orders processed by pickers
             st.bar_chart(picker_workload.set_index("picker_id"))
-
             # stacked bar for picker states
-            chart1 = alt.Chart(picker_states).mark_bar().encode(
-    x=alt.X("picker_id:N", title="Picker"),
-    y=alt.Y("proportion:Q", stack="normalize", axis=alt.Axis(format='%')),
-    color=alt.Color("state:N", title="State"),
-    tooltip=["picker_id", "state", "duration", alt.Tooltip("proportion:Q", format=".0%")]
-).properties(
-    width=600,
-    height=400
-)
-            st.altair_chart(chart1, use_container_width=True)
-
-            # line chart
-            line = alt.Chart(orders_in_system).mark_line(color="steelblue").encode(
-            x=alt.X("t:Q", title="Time"),
-            y=alt.Y("orders_in_system:Q", title="Orders in System")
-    )
-            shift_rects = []
-            colors = ["#f5f5f5", "#e0e0e0"]  # alternate gray shades
-            for i, shift in enumerate(SHIFTS_DEFINITION):
-                rect = alt.Chart(pd.DataFrame({
-                    "start": [shift["start_time"]],
-                    "end": [shift["end_time"]],
-                    "shift": [shift["shift_name"]]
-                })).mark_rect(opacity=0.3, color=colors[i % len(colors)]).encode(
-                    x="start:Q",
-                    x2="end:Q"
-                )
-            shift_rects.append(rect)
-
-            chart2 = alt.layer(*shift_rects, line).resolve_scale(y='shared')
-            st.altair_chart(chart2, use_container_width=True)
+            st.altair_chart(charts.plot_picker_states(picker_states), use_container_width=True)
+            # line chart for work in process
+            st.altair_chart(charts.plot_orders_in_system(orders_in_system, SHIFTS_DEFINITION))
 
         except Exception as e:
             st.error(f"Failed to load results: {e}")
