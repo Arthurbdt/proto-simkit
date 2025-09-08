@@ -24,6 +24,12 @@ def plot_picker_states(data):
 
 def plot_orders_in_system(data, shifts):
     """
+    Create a line chart of active orders in system. Shifts are shaded to facilitate
+    reading results
+
+    Inputs:
+        - Data: pandas dataframe with columns timestamp and count of orders
+        - Shifts: array of dictionaries with shift start and end times
     """
     # create line chart
     line = (alt
@@ -55,3 +61,21 @@ def plot_orders_in_system(data, shifts):
         .resolve_scale(y='shared')
     )
     return visual
+
+def expand_shifts(shifts, sim_duration, day_duration):
+    """
+    Replicates shift definitions across the full simulation horizon.
+    """
+    expanded = []
+    n_days = int(sim_duration // day_duration)
+
+    for d in range(n_days):
+        offset = d * day_duration
+        for shift in shifts:
+            expanded.append({
+                "shift_id": shift["shift_id"],
+                "shift_name": shift["shift_name"],
+                "start_time": shift["start_time"] + offset,
+                "end_time": shift["end_time"] + offset,
+            })
+    return expanded

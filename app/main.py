@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 # import simulation run function
 from sim.core import run_simulation
 from sim.logging import DB_PATH
-from sim.config import SHIFTS_DEFINITION, SKILLS_DEFINITION, PICKERS_DEFAULT
+from sim.config import SHIFTS_DEFINITION, SKILLS_DEFINITION, PICKERS_DEFAULT, SIM_DURATION, DAY_DURATION
 
 # Create lookup dictionaries
 SHIFT_ID_TO_NAME = {s["shift_id"]: s["shift_name"] for s in SHIFTS_DEFINITION}
@@ -91,8 +91,10 @@ if page == "Simulation":
             st.bar_chart(picker_workload.set_index("picker_id"))
             # stacked bar for picker states
             st.altair_chart(charts.plot_picker_states(picker_states), use_container_width=True)
+            # expand shifts for work in process chart
+            expanded_shifts = charts.expand_shifts(SHIFTS_DEFINITION, SIM_DURATION, DAY_DURATION)
             # line chart for work in process
-            st.altair_chart(charts.plot_orders_in_system(orders_in_system, SHIFTS_DEFINITION))
+            st.altair_chart(charts.plot_orders_in_system(orders_in_system, expanded_shifts))
 
         except Exception as e:
             st.error(f"Failed to load results: {e}")
