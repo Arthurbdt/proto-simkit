@@ -48,10 +48,15 @@ The simulation tracks how many orders are in the system, how pickers spend their
 
 Once the simulation has run, some metrics and visualizations appear:
 - Pickers workload: shows how many orders were processed by each picker (or were not picked during the simulation).
+
 ![image info](app/images/pickers_workload.png)
+
 - Pickers usage: shows the distribution of time spend in each state per picker.
+
 ![image info](app/images/pickers_usage.png)
+
 - Work in process: number of orders in the system over time. First and second shifts are shaded differently to help assess wether each shift is properly staffed.
+
 ![image info](app/images/work_in_process.png)
 
 
