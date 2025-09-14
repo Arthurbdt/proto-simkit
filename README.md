@@ -29,7 +29,7 @@ streamlit run app/main.py
 ```
 The app will launch and the following table will appear:
 
-<img src='./app/images/pickers_table.png'>
+<img src='./app/images/pickers_table.PNG'>
 
 You can add as many pickers as you want, name them, assign them a shift and seniority level. Make sure you don't leave an empty row in the table or an error will be raised when starting the simulation.
 
@@ -49,14 +49,14 @@ The simulation tracks how many orders are in the system, how pickers spend their
 Once the simulation has run, some metrics and visualizations appear:
 - Pickers workload: shows how many orders were processed by each picker (or were not picked during the simulation).
 
-<img src='./app/images/pickers_workload.png'>
+<img src='./app/images/pickers_workload.PNG'>
 
 - Pickers usage: shows the distribution of time spend in each state per picker.
 
-<img src='./app/images/pickers_usage.png'>
+<img src='./app/images/pickers_usage.PNG'>
 
 - Work in process: number of orders in the system over time. First and second shifts are shaded differently to help assess wether each shift is properly staffed.
 
-<img src='./app/images/work_in_process.png'>
+<img src='./app/images/work_in_process.PNG'>
 
 
